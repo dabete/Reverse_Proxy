@@ -47,6 +47,7 @@ func attachBackendHeaders(w http.ResponseWriter, response *http.Response) {
 
 func main() {
 	mux := http.NewServeMux()
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		method := r.Method
 		headers := r.Header.Clone()
@@ -84,7 +85,13 @@ func main() {
 		// err (any network level error e.g. Spring Boot is offline or connection refused)
 	})
 
-	log.Fatal(http.ListenAndServe(":8080", mux))
+	var wrappedMux http.Handler = mux
+	// wrap in middleware
+	for _, middleware := range middlewares {
+		wrappedMux = middleware(wrappedMux)
+	}
+
+	log.Fatal(http.ListenAndServe(":8080", wrappedMux))
 }
 
 // need to clone the request
