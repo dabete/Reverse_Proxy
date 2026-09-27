@@ -6,6 +6,15 @@ import (
 	"net/http"
 )
 
+// rdb := redis.NewClient(&redis.Options{
+// 	Addr: "localhost:6379",
+// 	Password: "", // no password
+// 	DB: 0, // use default database
+// 	Protocol: 2
+// })
+// // add a context object
+// ctx := context.Background()
+
 func buildForwardedURL(r *http.Request) string {
 	baseURL := "http://localhost:5000"
 
