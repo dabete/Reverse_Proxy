@@ -1,9 +1,12 @@
 package main
 
 import (
+	"context"
 	"io"
 	"log"
 	"net/http"
+
+	"github.com/redis/go-redis/v9"
 )
 
 // rdb := redis.NewClient(&redis.Options{
@@ -55,6 +58,22 @@ func attachBackendHeaders(w http.ResponseWriter, response *http.Response) {
 }
 
 func main() {
+
+	// initialise connection to redis database
+	rdb := redis.NewClient(&redis.Options{
+		Addr:     "localhost:6379",
+		Password: "", // no password
+		DB:       0,  // use default DB
+		Protocol: 2,
+	})
+
+	// fail immediately if redis isn't reachable
+	if err := rdb.Ping(context.Background()).Err(); err != nil {
+		log.Fatalf("Cannot connect to redis: %v", err)
+	}
+
+	//middlewares = append(middlewares, redisTokenBucketRateLimiting(rdb))
+
 	mux := http.NewServeMux()
 
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
@@ -99,6 +118,10 @@ func main() {
 	for _, middleware := range middlewares {
 		wrappedMux = middleware(wrappedMux)
 	}
+
+	// wrap with redis rate limiter
+	rateLimiter := redisTokenBucketRateLimiting(rdb, 5, 1, 100)
+	wrappedMux = rateLimiter(wrappedMux)
 
 	log.Fatal(http.ListenAndServe(":8080", wrappedMux))
 }
