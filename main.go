@@ -5,6 +5,7 @@ import (
 	"io"
 	"log"
 	"net/http"
+	"os"
 
 	"github.com/redis/go-redis/v9"
 )
@@ -123,7 +124,12 @@ func main() {
 	rateLimiter := redisTokenBucketRateLimiting(rdb, 5, 1, 100)
 	wrappedMux = rateLimiter(wrappedMux)
 
-	log.Fatal(http.ListenAndServe(":8080", wrappedMux))
+	port := os.Getenv("PORT")
+	if port == "" {
+		port = "8080"
+	}
+
+	log.Fatal(http.ListenAndServe(":"+port, wrappedMux))
 }
 
 // need to clone the request

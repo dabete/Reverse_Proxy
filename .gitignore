@@ -1,0 +1,53 @@
+# Binaries
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Build output
+/bin/
+/dist/
+/build/
+
+# Test binaries and coverage
+*.test
+*.out
+coverage.txt
+coverage.html
+cover.out
+
+# Go workspace file
+go.work
+go.work.sum
+
+# Dependency directory (uncomment if you use `go mod vendor` and don't commit it)
+# vendor/
+
+# Environment and secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+
+# Logs
+*.log
+
+# Profiling output
+*.prof
+*.pprof
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Air (live reload) temp dir
+tmp/
