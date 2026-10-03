@@ -1,23 +1,24 @@
 package main
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
+	"fmt"
 	"io"
 	"log"
 	"net/http"
 	"os"
+	"time"
 
 	"github.com/redis/go-redis/v9"
 )
 
-// rdb := redis.NewClient(&redis.Options{
-// 	Addr: "localhost:6379",
-// 	Password: "", // no password
-// 	DB: 0, // use default database
-// 	Protocol: 2
-// })
-// // add a context object
-// ctx := context.Background()
+type GatewayService struct {
+	IsAlive       bool   `json:"isAlive"`
+	URL           string `json:"Url"`
+	HealthCounter int    `json:"HealthCounter"`
+}
 
 func buildForwardedURL(r *http.Request) string {
 	baseURL := "http://localhost:5000"
@@ -79,7 +80,7 @@ func main() {
 
 	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200) // OK
-		response := []byte("Gatway is healthy")
+		response := []byte("Gateway is healthy")
 		w.Write(response)
 	})
 
@@ -135,10 +136,36 @@ func main() {
 		port = "8080"
 	}
 
+	// tell the load balancer that this gateway is alive
+	// create json payload
+	payload := GatewayService{
+		IsAlive:       true,
+		URL:           "http://localhost:" + port,
+		HealthCounter: 2,
+	}
+
+	jsonData, err := json.Marshal(payload)
+	if err != nil {
+		log.Fatal(err)
+	}
+
 	log.Fatal(http.ListenAndServe(":"+port, wrappedMux))
+	// send the json payload (POST request to load balancer web server)
+	targetServer := "http://localhost:9000/admin/register"
+	client := &http.Client{Timeout: 5 * time.Second}
+
+	resp, err := client.Post(targetServer, "application/json", bytes.NewBuffer(jsonData))
+	if err != nil {
+		log.Fatalf("Failed to reach server: %v", err)
+	}
+	defer resp.Body.Close()
+
+	fmt.Printf("Server responded with status code: %d\n", resp.StatusCode)
 }
 
 // need to clone the request
 // forward the request
 // read the response: wait for the backend server to respond, gives you a status code and body
 // copy back to the client, stream its response body straight into the client's ResponseWriter
+
+// REMEMBER TO CHANGE WHICH X-FORWARDED-HEADER WE NEED TO LOOK AT
