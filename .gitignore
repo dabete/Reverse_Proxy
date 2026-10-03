@@ -51,3 +51,5 @@ Thumbs.db
 
 # Air (live reload) temp dir
 tmp/
+
+gateway.exe

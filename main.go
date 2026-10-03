@@ -77,6 +77,12 @@ func main() {
 
 	mux := http.NewServeMux()
 
+	mux.HandleFunc("GET /health", func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(200) // OK
+		response := []byte("Gatway is healthy")
+		w.Write(response)
+	})
+
 	mux.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		method := r.Method
 		headers := r.Header.Clone()
