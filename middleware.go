@@ -79,6 +79,11 @@ func redisTokenBucketRateLimiting(rdb *redis.Client, capacity, rate float64, ttl
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 
+			if r.URL.Path == "/health" { // does not need rate limiting
+				next.ServeHTTP(w, r)
+				return
+			}
+
 			// TOKEN_LIMIT := 5.0
 			// TOKENS_PER_SECOND := 1.0
 			// TTL := 100 // seconds I believe
@@ -86,7 +91,7 @@ func redisTokenBucketRateLimiting(rdb *redis.Client, capacity, rate float64, ttl
 			identity := headerHelper(r)
 			key := "rate_limit:" + identity // look into this change, they changed the helper header file anyways so may have to change this
 
-			ctx, cancel := context.WithTimeout(r.Context(), 75*time.Millisecond)
+			ctx, cancel := context.WithTimeout(r.Context(), 250*time.Millisecond)
 			defer cancel()
 
 			allowed, err := tokenBucketScript.Run(

@@ -134,13 +134,7 @@ func startPolling(lb *LoadBalancer) {
 
 			// perform HTTP health check
 			for _, gateway := range deadGateways {
-				resp, err := http.Get(gateway.URL + "/health")
-				if err != nil {
-					log.Fatalf("Request Failed: %v", err)
-				}
-				defer resp.Body.Close()
-
-				if resp.StatusCode == 200 {
+				if checkBackendIsHealthy(gateway.URL) {
 					lb.mu.Lock()
 					gateway.IsAlive = true
 					gateway.HealthCounter = 2
@@ -157,6 +151,12 @@ func main() {
 	lb := &LoadBalancer{}
 	startPolling(lb)
 	mux := http.NewServeMux()
+
+	mux.HandleFunc("GET /admin/gateways", func(w http.ResponseWriter, r *http.Request) {
+		lb.mu.Lock()
+		defer lb.mu.Unlock()
+		json.NewEncoder(w).Encode(lb.gateways)
+	})
 
 	mux.HandleFunc("POST /admin/register", func(w http.ResponseWriter, r *http.Request) {
 		// will first check if an instance of it already appears
@@ -249,6 +249,9 @@ func main() {
 				w.Header().Add(key, value)
 			}
 		}
+
+		// FOR TESTING PURPOSES
+		w.Header().Set("X-Served-By", gateway.URL)
 
 		w.WriteHeader(resp.StatusCode)
 		io.Copy(w, resp.Body)

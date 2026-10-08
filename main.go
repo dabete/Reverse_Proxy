@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
-	"fmt"
 	"io"
 	"log"
 	"net/http"
@@ -19,6 +18,9 @@ type GatewayService struct {
 	URL           string `json:"Url"`
 	HealthCounter int    `json:"HealthCounter"`
 }
+
+// add timeout just in case Spring boot freezes
+var backendClient = &http.Client{Timeout: 30 * time.Second}
 
 func buildForwardedURL(r *http.Request) string {
 	baseURL := "http://localhost:5000"
@@ -101,7 +103,7 @@ func main() {
 		forwarded_request.Header = headers
 
 		// send to the backend
-		response, err := http.DefaultClient.Do(forwarded_request)
+		response, err := backendClient.Do(forwarded_request)
 
 		if err != nil {
 			http.Error(w, "Bad Gateway: backend unreachable", http.StatusBadGateway) // status code 502
@@ -149,18 +151,23 @@ func main() {
 		log.Fatal(err)
 	}
 
-	log.Fatal(http.ListenAndServe(":"+port, wrappedMux))
-	// send the json payload (POST request to load balancer web server)
-	targetServer := "http://localhost:9000/admin/register"
+	go func() {
+		log.Fatal(http.ListenAndServe(":"+port, wrappedMux))
+	}()
+
 	client := &http.Client{Timeout: 5 * time.Second}
+	for {
+		resp, err := client.Post("http://localhost:9000/admin/register",
+			"application/json", bytes.NewBuffer(jsonData))
+		if err != nil {
+			log.Printf("Could not register with load balancer, will retry in 10 seconds: %v", err)
+		} else {
+			resp.Body.Close()
+		}
+		time.Sleep(10 * time.Second)
 
-	resp, err := client.Post(targetServer, "application/json", bytes.NewBuffer(jsonData))
-	if err != nil {
-		log.Fatalf("Failed to reach server: %v", err)
 	}
-	defer resp.Body.Close()
 
-	fmt.Printf("Server responded with status code: %d\n", resp.StatusCode)
 }
 
 // need to clone the request
